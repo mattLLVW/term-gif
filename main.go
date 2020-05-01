@@ -234,7 +234,7 @@ func main() {
 	r.HandleFunc("/{search}", conditionalHandler)
 	r.PathPrefix("/").HandlerFunc(IndexHandler)
 
-	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", c.Port), handlers.RecoveryHandler()(r))
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host,c.Port), handlers.RecoveryHandler()(r))
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}

@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <title>termynal.js example</title>
+    <title>e.xec.sh</title>
     <meta charset="utf-8">
     <!-- include the termynal stylesheet -->
     <link rel="stylesheet" href="static/css/termynal.css">
+    <link rel="icon" href="static/img/spongebob.gif" type="image/gif" />
     <!-- some custom styles for the page -->
     <link href="https://fonts.googleapis.com/css?family=Fira+Mono">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,900;1,900&display=swap" rel="stylesheet">
@@ -12,14 +13,39 @@
 <body>
 <!-- the termynal container -->
 <h1 class="white">E.XEC.SH</h1>
-<div id="termynal" data-termynal>
-    <span data-ty="input">curl e.xec.sh/magic</span>
-    <span data-ty><img id="randomGif" src="/static/img/mgc.gif" alt="magic"  width=450/></span>
-    <span data-ty></span>
-    <span data-ty></span>
+<div id="termynal" data-termynal style="min-height: 600px">
+    <span data-ty="input" id="prompt">curl e.xec.sh/magic</span>
+    <span data-ty id="randomGif"><img src="/static/img/mgc.gif" alt="magic"
+                                                                 width=450/></span>
 </div>
 
 <!-- include and initialise termynal.js -->
 <script src="/static/js/termynal.js" data-termynal-container="#termynal"></script>
+<script>
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function demo() {
+        await sleep(7000);
+        let newLine = "curl e.xec.sh/spongebob_magic";
+        let prompt = document.getElementById('prompt');
+        let randomGif = document.getElementById('randomGif');
+        prompt.innerText = ""
+        randomGif.innerHTML = ""
+
+        // Sleep in loop
+        for (let i = 0; i < newLine.length; i++) {
+            await sleep(90);
+
+            prompt.innerText += newLine.charAt(i) !== " " ? newLine.charAt(i) : "\u00A0";
+        }
+        await sleep(900);
+        randomGif.innerHTML = '<img src="/static/img/spongebob.gif" alt="magic" width=450/>'
+    }
+
+    demo()
+
+</script>
 </body>
 </html>
