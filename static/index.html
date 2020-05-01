@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <!-- include the termynal stylesheet -->
     <link rel="stylesheet" href="static/css/termynal.css">
-    <link rel="icon" href="static/img/spongebob.gif" type="image/gif" />
+    <link rel="icon" href="static/img/mgc.gif" type="image/gif"/>
     <!-- some custom styles for the page -->
     <link href="https://fonts.googleapis.com/css?family=Fira+Mono">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,900;1,900&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
 <div id="termynal" data-termynal style="min-height: 600px">
     <span data-ty="input" id="prompt">curl e.xec.sh/magic</span>
     <span data-ty id="randomGif"><img src="/static/img/mgc.gif" alt="magic"
-                                                                 width=450/></span>
+                                      width=450/></span>
 </div>
 
 <!-- include and initialise termynal.js -->
@@ -28,10 +28,11 @@
 
     async function demo() {
         await sleep(7000);
-        let newLine = "curl e.xec.sh/spongebob_magic";
-        let prompt = document.getElementById('prompt');
-        let randomGif = document.getElementById('randomGif');
+        let newLine = "curl e.xec.sh/mind_blown"
+        let prompt = document.getElementById('prompt')
+        let randomGif = document.getElementById('randomGif')
         prompt.innerText = ""
+        prompt.setAttribute("data-ty-cursor", "▋")
         randomGif.innerHTML = ""
 
         // Sleep in loop
@@ -40,8 +41,9 @@
 
             prompt.innerText += newLine.charAt(i) !== " " ? newLine.charAt(i) : "\u00A0";
         }
+        prompt.removeAttribute("data-ty-cursor")
         await sleep(900);
-        randomGif.innerHTML = '<img src="/static/img/spongebob.gif" alt="magic" width=450/>'
+        randomGif.innerHTML = '<img src="/static/img/mindblown.gif" alt="magic" width=450/>'
     }
 
     demo()
