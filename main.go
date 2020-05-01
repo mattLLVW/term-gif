@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/lucasb-eyer/go-colorful"
+	"github.com/mssola/user_agent"
 	"github.com/spf13/viper"
 	"image"
 	"image/draw"
@@ -157,6 +158,7 @@ func sendGif(w http.ResponseWriter, g *gif.GIF) {
 	}
 }
 
+// If requested from Cli, search for gif, encode in ansi and return result
 func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	search := vars["search"]
@@ -180,11 +182,37 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 	sendGif(w, g)
 }
 
-func IndexHandler(entrypoint string) func(w http.ResponseWriter, r *http.Request) {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, entrypoint)
+// Serve Vue.js files
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "static/index.html")
+}
+
+// Check if request is made from a CLI
+func IsValidBrowser(browser string) bool {
+	switch browser {
+	case
+		"curl",
+		"Wget",
+		"HTTPie":
+		return true
 	}
-	return fn
+	return false
+}
+
+// Return proper handler depending on cli or browser
+func conditionalHandler(w http.ResponseWriter, r *http.Request) {
+	ua := user_agent.New(r.Header.Get("User-Agent"))
+	name, _ := ua.Browser()
+	if !IsValidBrowser(name) {
+		IndexHandler(w, r)
+	} else {
+		wildcardHandler(w, r)
+	}
+}
+
+func apiHandler(w http.ResponseWriter, r *http.Request) {
+	url, _ := searchGif("random")
+	fmt.Fprintf(w, url)
 }
 
 func main() {
@@ -200,12 +228,13 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.PathPrefix("/static").Handler(http.FileServer(http.Dir("dist/")))
-	r.PathPrefix("/favicon.ico").Handler(http.FileServer(http.Dir("public/")))
-	r.HandleFunc("/{search}", wildcardHandler)
-	r.PathPrefix("/").HandlerFunc(IndexHandler("dist/index.html"))
+	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("./static"))))
+	r.PathPrefix("/favicon.ico").Handler(http.FileServer(http.Dir("static/")))
+	r.PathPrefix("/api/random").HandlerFunc(apiHandler)
+	r.HandleFunc("/{search}", conditionalHandler)
+	r.PathPrefix("/").HandlerFunc(IndexHandler)
 
-	err := http.ListenAndServe(fmt.Sprintf(":%d", c.Port), handlers.RecoveryHandler()(r))
+	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", c.Port), handlers.RecoveryHandler()(r))
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}

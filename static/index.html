@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>termynal.js example</title>
+    <meta charset="utf-8">
+    <!-- include the termynal stylesheet -->
+    <link rel="stylesheet" href="static/css/termynal.css">
+    <!-- some custom styles for the page -->
+    <link href="https://fonts.googleapis.com/css?family=Fira+Mono">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,900;1,900&display=swap" rel="stylesheet">
+</head>
+<body>
+<!-- the termynal container -->
+<h1 class="white">E.XEC.SH</h1>
+<div id="termynal" data-termynal>
+    <span data-ty="input">curl e.xec.sh/magic</span>
+    <span data-ty><img id="randomGif" src="/static/img/mgc.gif" alt="magic"  width=450/></span>
+    <span data-ty></span>
+    <span data-ty></span>
+</div>
+
+<!-- include and initialise termynal.js -->
+<script src="/static/js/termynal.js" data-termynal-container="#termynal"></script>
+</body>
+</html>
