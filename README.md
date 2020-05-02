@@ -8,9 +8,16 @@ curl e.xec.sh/anything_you_want
 
 Search terms must be separated by an underscore.
 
+Works with `curl` and `wget`:
+
+```bash
+curl e.xec.sh/magic
+wget -qO- e.xec.sh/rainbow
+```
+
 ## Example
 
-[![asciicast](https://asciinema.org/a/2gLYFVrDt76XWIKjX5oNTMij6.svg)](https://asciinema.org/a/2gLYFVrDt76XWIKjX5oNTMij6)
+[![asciicast](https://asciinema.org/a/qTVUtjVThqmrJadmLZHvmt7H1.svg)](https://asciinema.org/a/qTVUtjVThqmrJadmLZHvmt7H1)
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
