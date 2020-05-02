@@ -45,6 +45,11 @@ type Gif struct {
 	Size    int
 }
 
+type RenderedImg struct {
+	Output string
+	Delay  int
+}
+
 type config struct {
 	Host   string
 	Port   int
@@ -121,8 +126,8 @@ func oopsGif() (g *gif.GIF) {
 	return
 }
 
-// Split gif images and write response according to timing
-func sendGif(w http.ResponseWriter, g *gif.GIF) {
+// Split gif, transform to ansi code and return a slice of images:delay
+func renderGif(g *gif.GIF) (imgs []RenderedImg) {
 	// https://stackoverflow.com/a/33296596/8135079
 	defer func() {
 		if r := recover(); r != nil {
@@ -142,7 +147,6 @@ func sendGif(w http.ResponseWriter, g *gif.GIF) {
 	dm := ansimage.DitheringMode(0)
 	sm := ansimage.ScaleMode(2)
 	// Clear terminal and position cursor
-	fmt.Fprintf(w, "\033[2J\033[1;1H")
 
 	for i, srcImg := range g.Image {
 		delay := g.Delay[i]
@@ -150,8 +154,20 @@ func sendGif(w http.ResponseWriter, g *gif.GIF) {
 		pix, _ := ansimage.NewScaledFromImage(overpaintImage, sfy*ty, sfx*tx, mc, sm, dm)
 		pix.SetMaxProcs(runtime.NumCPU())
 		renderedGif := pix.Render()
-		time.Sleep(time.Duration(delay*10) * time.Millisecond)
-		fmt.Fprintf(w, renderedGif)
+		imgs = append(imgs, RenderedImg{Delay: delay, Output: renderedGif})
+	}
+	return imgs
+}
+
+// Send rendered gif as a response
+func sendGif(w http.ResponseWriter, g *gif.GIF) {
+	imgs := renderGif(g)
+	// Clear terminal and position cursor
+	fmt.Fprintf(w, "\033[2J\033[1;1H")
+
+	for _, srcImg := range imgs {
+		time.Sleep(time.Duration(srcImg.Delay*10) * time.Millisecond)
+		fmt.Fprintf(w, srcImg.Output)
 		// Reposition cursor
 		fmt.Fprintf(w, "\033[1;1H")
 	}
@@ -184,12 +200,12 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Serve Vue.js files
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
+func indexHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "static/index.html")
 }
 
 // Check if request is made from a CLI
-func IsValidBrowser(browser string) bool {
+func isValidBrowser(browser string) bool {
 	switch browser {
 	case
 		"curl",
@@ -204,8 +220,8 @@ func IsValidBrowser(browser string) bool {
 func conditionalHandler(w http.ResponseWriter, r *http.Request) {
 	ua := user_agent.New(r.Header.Get("User-Agent"))
 	name, _ := ua.Browser()
-	if !IsValidBrowser(name) {
-		IndexHandler(w, r)
+	if !isValidBrowser(name) {
+		indexHandler(w, r)
 	} else {
 		wildcardHandler(w, r)
 	}
@@ -227,7 +243,7 @@ func main() {
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("./static"))))
 	r.PathPrefix("/favicon.ico").Handler(http.FileServer(http.Dir("static/")))
 	r.HandleFunc("/{search}", conditionalHandler)
-	r.PathPrefix("/").HandlerFunc(IndexHandler)
+	r.PathPrefix("/").HandlerFunc(indexHandler)
 
 	err := http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(r))
 	if err != nil {
