@@ -107,7 +107,7 @@ func searchGif(search string) (gifUrl string, err error) {
 
 // If anything bad happen, be cute
 func oopsGif() (g *gif.GIF) {
-	oopsFile, err := os.Open("oops.gif")
+	oopsFile, err := os.Open("static/img/oops.gif")
 	defer oopsFile.Close()
 	if err != nil {
 		// Something is really wrong, just stop everything
@@ -167,18 +167,20 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 	gifUrl, err := searchGif(search)
 	if err != nil {
 		sendGif(w, oopsGif())
+	} else {
+		res, err := http.Get(gifUrl)
+		defer res.Body.Close()
+		if err != nil {
+			sendGif(w, oopsGif())
+		} else {
+			g, err := gif.DecodeAll(res.Body)
+			if err != nil {
+				sendGif(w, oopsGif())
+			} else {
+				sendGif(w, g)
+			}
+		}
 	}
-	res, err := http.Get(gifUrl)
-	if err != nil {
-		sendGif(w, oopsGif())
-	}
-	defer res.Body.Close()
-	g, err := gif.DecodeAll(res.Body)
-
-	if err != nil {
-		sendGif(w, oopsGif())
-	}
-	sendGif(w, g)
 }
 
 // Serve Vue.js files
