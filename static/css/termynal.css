@@ -128,3 +128,19 @@ h1 {
     margin: auto;
     font-family: 'Roboto', sans-serif;
 }
+
+.social {
+    position: absolute;
+    bottom: 50px;
+    right: 70px;
+    background-color: transparent;
+    text-decoration: none;
+}
+
+.kofi {
+    position: absolute;
+    right: 140px;
+    bottom: 50px;
+    background-color: transparent;
+    text-decoration: none;
+}
