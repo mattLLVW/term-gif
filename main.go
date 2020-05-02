@@ -3,13 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/eliukblau/pixterm/pkg/ansimage"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/lucasb-eyer/go-colorful"
-	"github.com/mssola/user_agent"
-	"github.com/spf13/viper"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/gif"
 	"io/ioutil"
@@ -20,6 +15,12 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/eliukblau/pixterm/pkg/ansimage"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/mssola/user_agent"
+	"github.com/spf13/viper"
 )
 
 type Tenor struct {
@@ -137,17 +138,15 @@ func sendGif(w http.ResponseWriter, g *gif.GIF) {
 	// set image scale factor for ANSIPixel grid
 	tx, ty := 30, 9
 	sfy, sfx := ansimage.BlockSizeY, ansimage.BlockSizeX
-	// TODO: unhandled err
-	mc, _ := colorful.Hex("#000000")
+	mc := color.RGBA{0x00, 0x00, 0x00, 0xff}
 	dm := ansimage.DitheringMode(0)
-	sm := ansimage.ScaleMode(0)
+	sm := ansimage.ScaleMode(2)
 	// Clear terminal and position cursor
 	fmt.Fprintf(w, "\033[2J\033[1;1H")
 
 	for i, srcImg := range g.Image {
 		delay := g.Delay[i]
 		draw.Draw(overpaintImage, overpaintImage.Bounds(), srcImg, image.ZP, draw.Over)
-		// TODO: unhandled err
 		pix, _ := ansimage.NewScaledFromImage(overpaintImage, sfy*ty, sfx*tx, mc, sm, dm)
 		pix.SetMaxProcs(runtime.NumCPU())
 		renderedGif := pix.Render()
@@ -210,11 +209,6 @@ func conditionalHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func apiHandler(w http.ResponseWriter, r *http.Request) {
-	url, _ := searchGif("random")
-	fmt.Fprintf(w, url)
-}
-
 func main() {
 	log.Println("starting server...")
 	// Find and read the config file
@@ -230,11 +224,10 @@ func main() {
 
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("./static"))))
 	r.PathPrefix("/favicon.ico").Handler(http.FileServer(http.Dir("static/")))
-	r.PathPrefix("/api/random").HandlerFunc(apiHandler)
 	r.HandleFunc("/{search}", conditionalHandler)
 	r.PathPrefix("/").HandlerFunc(IndexHandler)
 
-	err := http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host,c.Port), handlers.RecoveryHandler()(r))
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(r))
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
