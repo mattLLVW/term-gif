@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mattLLVW/e.xec.sh/models"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -17,70 +19,43 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Tenor struct {
-	WebUrl  string
-	Results []Result
-}
-
-type Result struct {
-	Tag   []string
-	Url   string
-	Id    string
-	Media []MediaType
-}
-
-type MediaType struct {
-	Gif Gif
-}
-
-type Gif struct {
-	Url     string
-	Dims    []int
-	Preview string
-	Size    int
-}
-
 type config struct {
-	Host   string
-	Port   int
-	ApiKey string
-	Limit  int
-	DbUser string
-	DbPass string
-	DbHost string
-	DbPort int
-	DbName string
+	Host      string
+	Port      int
+	ApiKey    string
+	Limit     int
+	DbUser    string
+	DbPass    string
+	DbHost    string
+	DbPort    int
+	DbName    string
+	DbEnabled bool
 }
 
 var c config
 
-// Search gif on tenor and return download url
-func searchGif(search string) (gifUrl string, gifId string, err error) {
+// Search gif on api and return download url and gif id
+func searchApi(search string) (data models.Api, err error) {
 	url := fmt.Sprintf("https://api.tenor.com/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", search, c.ApiKey, c.Limit)
 	// Search gif on tenor
 	res, err := http.Get(url)
 	if err != nil {
 		log.Printf("Error while searching gif %s", err)
-		return "","", err
+		return data, err
 	}
 	defer res.Body.Close()
 	// Parse json response
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("Error while reading body %s", err)
-		return "","", err
+		return data, err
 	}
-	var data Tenor
 	if err := json.Unmarshal(body, &data); err != nil {
 		log.Printf("Error while unmarshalling body %s", err)
-		return "","", err
+		return data, err
 	}
-	rand.Seed(time.Now().Unix())
-	randNb := rand.Intn(c.Limit)
-	gifUrl = data.Results[randNb].Media[0].Gif.Url
-	return gifUrl, data.Results[randNb].Id, nil
+	return data, nil
 }
-
 
 // Send rendered gif as a response
 func sendGif(w http.ResponseWriter, imgs []models.RenderedImg) {
@@ -97,25 +72,45 @@ func sendGif(w http.ResponseWriter, imgs []models.RenderedImg) {
 
 // If requested from Cli, search for gif, encode in ansi and return result
 func wildcardHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	search := vars["search"]
-	strings.ReplaceAll(search, "_", " ")
+	// If enabled, return a random gif
+	rand.Seed(time.Now().Unix())
+	randNb := rand.Intn(c.Limit)
 
-	// Search gif on tenor and return download url
-	gifUrl, gifId, err := searchGif(search)
+	// Extract search terms from url and format them
+	search := mux.Vars(r)["search"]
+	strings.ReplaceAll(search, "_", " ")
+	qry := r.URL.Query()
+
+	// Search gif on api and return api data
+	apiData, err := searchApi(search)
+	gifUrl := apiData.Results[randNb].Media[0].Gif.Url
+	gifId := apiData.Results[randNb].Id
 	if err != nil {
 		sendGif(w, models.OopsGif())
-	} else {
-		if models.AlreadyExist(gifId) {
-			fmt.Println("already exists")
-			sendGif(w, models.GetGifFromDb(gifId))
+	} else if models.AlreadyExist(gifId) {
+		// If we already have gif rendered locally try returning it
+		log.Println("fetching", gifId, "from database")
+		g, err := models.GetGifFromDb(gifId, qry.Get("rev") != "")
+		if err != nil {
+			log.Println("error while fetching", gifId, "from database")
+			sendGif(w, models.OopsGif())
 		} else {
-			sendGif(w, models.InsertGif(gifId, gifUrl))
+			sendGif(w, g)
+		}
+	} else {
+		// If we don't have gif locally, store it in database and return it
+		log.Println("inserting", gifId, "into database")
+		g, err := models.InsertGif(gifId, gifUrl, qry.Get("rev") != "")
+		if err != nil {
+			log.Println("error while inserting", gifId, "into database")
+			sendGif(w, models.OopsGif())
+		} else {
+			sendGif(w, g)
 		}
 	}
 }
 
-// Serve Vue.js files
+// Serve static files
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "static/index.html")
 }
@@ -144,7 +139,15 @@ func conditionalHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	log.Println("starting server...")
+	// Open logging file and output logs to both std out and app.log
+	f, err := os.OpenFile("app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	mw := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(mw)
+
 	// Find and read the config file
 	viper.SetConfigFile(".env")
 	if err := viper.ReadInConfig(); err != nil {
@@ -153,16 +156,18 @@ func main() {
 	if err := viper.Unmarshal(&c); err != nil {
 		log.Fatalf("Unable to unmarshal config %s", err)
 	}
+
+	// Init database using environ variables
 	models.InitDB(fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8", c.DbUser, c.DbPass, c.DbHost, c.DbPort, c.DbName))
 
+	// Route to static site or ascii gif based on user agent
 	r := mux.NewRouter()
+	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("./static")))).Methods("GET")
+	r.HandleFunc("/{search}", conditionalHandler).Methods("GET")
+	r.PathPrefix("/").HandlerFunc(indexHandler).Methods("GET")
 
-	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("./static"))))
-	r.PathPrefix("/favicon.ico").Handler(http.FileServer(http.Dir("static/")))
-	r.HandleFunc("/{search}", conditionalHandler)
-	r.PathPrefix("/").HandlerFunc(indexHandler)
-
-	err := http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(r))
+	log.Println("starting server...")
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(handlers.LoggingHandler(mw, r)))
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}

@@ -12,63 +12,53 @@ import (
 	"runtime"
 )
 
+// TODO: create custom gif struct and associated methods
+// a rendered image extracted from a gif with its timing
 type RenderedImg struct {
 	Output string
 	Delay  int
 }
 
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func AlreadyExist(id string) (exist bool) {
-	err := db.QueryRow("SELECT IF(COUNT(*),'true','false') FROM gif WHERE tenor_id=?", id).Scan(&exist)
-	if err != nil {
-		log.Println("can't check if already exist: ", err)
-		return false
-	}
-	return exist
-}
-
-func InsertGif(id string, url string) (imgs []RenderedImg) {
+// Fetch gif on api, render it as ascii and return it
+func InsertGif(id string, url string, rev bool) (imgs []RenderedImg, err error) {
 	res, err := http.Get(url)
-	// TODO: err
+	if err != nil {
+		return imgs, err
+	}
 	defer res.Body.Close()
 	g, err := gif.DecodeAll(res.Body)
-	// TODO: err
+	if err != nil {
+		return imgs, err
+	}
 
 	stmt, err := db.Prepare("INSERT INTO gif (tenor_id) VALUES (?)")
 	if err != nil {
-		log.Println(err)
+		return imgs, err
 	}
 	_, err = stmt.Exec(id)
-	checkErr(err)
+	if err != nil {
+		return imgs, err
+	}
 
 	imgs = renderGif(g)
 	for i, srcImg := range imgs {
 		stmt, err := db.Prepare("INSERT INTO gif_data (frame_nb, delay, frame, gif_id) VALUES (?, ?, ?, ?)")
 		if err != nil {
-			log.Println(err)
+			return imgs, err
 		}
 		_, err = stmt.Exec(i, srcImg.Delay, srcImg.Output, id)
-		checkErr(err)
+		if err != nil {
+			return imgs, err
+		}
 	}
-	return imgs
-}
-
-func GetGifFromDb(id string) (imgs []RenderedImg) {
-	rows, err := db.Query("SELECT delay, frame FROM gif_data WHERE gif_id =? ORDER BY frame_nb", id)
-	if err != nil {
-		log.Println(err)
+	// Reverse gif
+	if rev {
+		for i := len(imgs)/2-1; i >= 0; i-- {
+			opp := len(imgs)-1-i
+			imgs[i], imgs[opp] = imgs[opp], imgs[i]
+		}
 	}
-	for rows.Next() {
-		var img RenderedImg
-		err = rows.Scan(&img.Delay, &img.Output)
-		imgs = append(imgs, img)
-	}
-	return imgs
+	return imgs, nil
 }
 
 // Split gif, transform to ansi code and return a slice of images:delay
@@ -80,32 +70,29 @@ func renderGif(g *gif.GIF) (imgs []RenderedImg) {
 		}
 	}()
 
-	imgWidth, imgHeight := getGifDimensions(g)
+	imgWidth, imgHeight := maxDimensions(g)
 
 	overpaintImage := image.NewRGBA(image.Rect(0, 0, imgWidth, imgHeight))
 	draw.Draw(overpaintImage, overpaintImage.Bounds(), g.Image[0], image.ZP, draw.Src)
 
-	// set image scale factor for ANSIPixel grid
+	// set image scale factor for ANSIPixel grid, background color and scale mode
 	tx, ty := 30, 9
 	sfy, sfx := ansimage.BlockSizeY, ansimage.BlockSizeX
 	mc := color.RGBA{0x00, 0x00, 0x00, 0xff}
 	dm := ansimage.DitheringMode(0)
 	sm := ansimage.ScaleMode(2)
-	// Clear terminal and position cursor
 
 	for i, srcImg := range g.Image {
-		delay := g.Delay[i]
 		draw.Draw(overpaintImage, overpaintImage.Bounds(), srcImg, image.ZP, draw.Over)
 		pix, _ := ansimage.NewScaledFromImage(overpaintImage, sfy*ty, sfx*tx, mc, sm, dm)
 		pix.SetMaxProcs(runtime.NumCPU())
-		renderedGif := pix.Render()
-		imgs = append(imgs, RenderedImg{Delay: delay, Output: renderedGif})
+		imgs = append(imgs, RenderedImg{Delay: g.Delay[i], Output: pix.Render()})
 	}
 	return imgs
 }
 
 // Get max Gif dimensions.
-func getGifDimensions(gif *gif.GIF) (x, y int) {
+func maxDimensions(gif *gif.GIF) (x, y int) {
 	var lowestX int
 	var lowestY int
 	var highestX int
