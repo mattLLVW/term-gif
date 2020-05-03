@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/eliukblau/pixterm/pkg/ansimage"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/mssola/user_agent"
@@ -31,6 +33,7 @@ type Tenor struct {
 type Result struct {
 	Tag   []string
 	Url   string
+	Id    string
 	Media []MediaType
 }
 
@@ -53,11 +56,88 @@ type RenderedImg struct {
 type config struct {
 	Host   string
 	Port   int
-	apiKey string
+	ApiKey string
 	Limit  int
+	DbUser string
+	DbPass string
+	DbHost string
+	DbPort int
+	DbName string
 }
 
 var c config
+
+var db *sql.DB
+
+func initDb() (*sql.DB) {
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8", c.DbUser, c.DbPass, c.DbHost, c.DbPort, c.DbName))
+	if err != nil {
+		log.Fatalf("sql.Open error: %s", err)
+	}
+	// Open doesn't open a connection. Validate DSN data:
+	if err = db.Ping(); err != nil {
+		log.Fatalf("db.Ping error: %s", err)
+	}
+	return db
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func alreadyExist(id string) (exist bool) {
+	db := initDb()
+	err := db.QueryRow("SELECT IF(COUNT(*),'true','false') FROM gif WHERE tenor_id=?", id).Scan(&exist)
+	if err != nil {
+		log.Println("can't check if already exist: ", err)
+		return false
+	}
+	return exist
+}
+
+func insertGif(id string, url string) (imgs []RenderedImg) {
+	db := initDb()
+	res, err := http.Get(url)
+	// TODO: err
+	defer res.Body.Close()
+	g, err := gif.DecodeAll(res.Body)
+	// TODO: err
+
+	stmt, err := db.Prepare("INSERT INTO gif (tenor_id) VALUES (?)")
+	if err != nil {
+		log.Println(err)
+	}
+	_, err = stmt.Exec(id)
+	checkErr(err)
+
+	imgs = renderGif(g)
+	for i, srcImg := range imgs {
+		stmt, err := db.Prepare("INSERT INTO gif_data (frame_nb, delay, frame, gif_id) VALUES (?, ?, ?, ?)")
+		if err != nil {
+			log.Println(err)
+		}
+		_, err = stmt.Exec(i, srcImg.Delay, srcImg.Output, id)
+		checkErr(err)
+	}
+	return imgs
+}
+
+func getGifFromDb(id string) (imgs []RenderedImg) {
+	db := initDb()
+
+	rows, err := db.Query("SELECT delay, frame FROM gif_data WHERE gif_id =? ORDER BY frame_nb", id)
+	if err != nil {
+		log.Println(err)
+	}
+	for rows.Next() {
+		var img RenderedImg
+		err = rows.Scan(&img.Delay, &img.Output)
+		imgs = append(imgs, img)
+	}
+	return imgs
+}
 
 // Get max Gif dimensions.
 func getGifDimensions(gif *gif.GIF) (x, y int) {
@@ -85,45 +165,46 @@ func getGifDimensions(gif *gif.GIF) (x, y int) {
 }
 
 // Search gif on tenor and return download url
-func searchGif(search string) (gifUrl string, err error) {
-	url := fmt.Sprintf("https://api.tenor.com/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", search, c.apiKey, c.Limit)
+func searchGif(search string) (gifUrl string, gifId string, err error) {
+	url := fmt.Sprintf("https://api.tenor.com/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", search, c.ApiKey, c.Limit)
 	// Search gif on tenor
 	res, err := http.Get(url)
 	if err != nil {
 		log.Printf("Error while searching gif %s", err)
-		return "", err
+		return "","", err
 	}
 	defer res.Body.Close()
 	// Parse json response
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("Error while reading body %s", err)
-		return "", err
+		return "","", err
 	}
 	var data Tenor
 	if err := json.Unmarshal(body, &data); err != nil {
 		log.Printf("Error while unmarshalling body %s", err)
-		return "", err
+		return "","", err
 	}
 	rand.Seed(time.Now().Unix())
-	gifUrl = data.Results[rand.Intn(c.Limit)].Media[0].Gif.Url
-	return gifUrl, nil
+	randNb := rand.Intn(c.Limit)
+	gifUrl = data.Results[randNb].Media[0].Gif.Url
+	return gifUrl, data.Results[randNb].Id, nil
 }
 
 // If anything bad happen, be cute
-func oopsGif() (g *gif.GIF) {
+func oopsGif() ([]RenderedImg) {
 	oopsFile, err := os.Open("static/img/oops.gif")
 	defer oopsFile.Close()
 	if err != nil {
 		// Something is really wrong, just stop everything
 		panic("can't even open rescue gif")
 	}
-	g, err = gif.DecodeAll(oopsFile)
+	g, err := gif.DecodeAll(oopsFile)
 	if err != nil {
 		// Something is really wrong, just stop everything
 		panic("can't even decode rescue gif")
 	}
-	return
+	return renderGif(g)
 }
 
 // Split gif, transform to ansi code and return a slice of images:delay
@@ -160,8 +241,7 @@ func renderGif(g *gif.GIF) (imgs []RenderedImg) {
 }
 
 // Send rendered gif as a response
-func sendGif(w http.ResponseWriter, g *gif.GIF) {
-	imgs := renderGif(g)
+func sendGif(w http.ResponseWriter, imgs []RenderedImg) {
 	// Clear terminal and position cursor
 	fmt.Fprintf(w, "\033[2J\033[1;1H")
 
@@ -180,21 +260,15 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 	strings.ReplaceAll(search, "_", " ")
 
 	// Search gif on tenor and return download url
-	gifUrl, err := searchGif(search)
+	gifUrl, gifId, err := searchGif(search)
 	if err != nil {
 		sendGif(w, oopsGif())
 	} else {
-		res, err := http.Get(gifUrl)
-		defer res.Body.Close()
-		if err != nil {
-			sendGif(w, oopsGif())
+		if alreadyExist(gifId) {
+			fmt.Println("already exists")
+			sendGif(w, getGifFromDb(gifId))
 		} else {
-			g, err := gif.DecodeAll(res.Body)
-			if err != nil {
-				sendGif(w, oopsGif())
-			} else {
-				sendGif(w, g)
-			}
+			sendGif(w, insertGif(gifId, gifUrl))
 		}
 	}
 }

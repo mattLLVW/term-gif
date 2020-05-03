@@ -1,0 +1,25 @@
+version: '3.4'
+
+services:
+  db:
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_DATABASE: execsh
+      MYSQL_ROOT_PASSWORD: superdupersecretpassword
+      MYSQL_USER: execsh
+      MYSQL_PASSWORD: execsh
+    volumes:
+      - ./docker/sql/:/docker-entrypoint-initdb.d:rw
+    ports:
+      - "3306:3306"
+  web:
+    build:
+      network: host
+      context: .
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./:/app
+    depends_on:
+      - db
