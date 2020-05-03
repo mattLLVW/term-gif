@@ -25,6 +25,7 @@ type config struct {
 	Host      string
 	Port      int
 	ApiKey    string
+	ApiUrl    string
 	Limit     int
 	DbUser    string
 	DbPass    string
@@ -38,7 +39,7 @@ var c config
 
 // Create a custom visitor struct which holds the rate limiter for each
 // visitor and the last time that the visitor was seen.
-// taken from alexedwards.net/blog/how-to-rate-limit-http-requests
+// alexedwards.net/blog/how-to-rate-limit-http-requests
 type visitor struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
@@ -98,7 +99,7 @@ func limit(next http.Handler) http.Handler {
 // Search gif on api and return download url and gif id
 func searchApi(search string) (data models.Api, err error) {
 	url := fmt.Sprintf("https://api.tenor.com/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", search, c.ApiKey, c.Limit)
-	// Search gif on tenor
+	// Search gif on api
 	res, err := http.Get(url)
 	if err != nil {
 		log.Printf("Error while searching gif %s", err)

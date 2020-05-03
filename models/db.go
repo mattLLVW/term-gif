@@ -24,7 +24,7 @@ func InitDB(dataSourceName string) {
 
 // Check if id already exist in database
 func AlreadyExist(id string) (exist bool) {
-	err := db.QueryRow("SELECT IF(COUNT(*),'true','false') FROM gif WHERE tenor_id=?", id).Scan(&exist)
+	err := db.QueryRow("SELECT IF(COUNT(*),'true','false') FROM gif WHERE api_id=?", id).Scan(&exist)
 	if err != nil {
 		log.Println("can't check if already exist: ", err)
 		return false

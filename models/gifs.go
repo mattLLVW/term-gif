@@ -31,7 +31,7 @@ func InsertGif(id string, url string, rev bool) (imgs []RenderedImg, err error) 
 		return imgs, err
 	}
 
-	stmt, err := db.Prepare("INSERT INTO gif (tenor_id) VALUES (?)")
+	stmt, err := db.Prepare("INSERT INTO gif (api_id) VALUES (?)")
 	if err != nil {
 		return imgs, err
 	}

@@ -9,8 +9,8 @@ DROP TABLE IF EXISTS `gif`;
 CREATE TABLE `gif`
 (
     id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    tenor_id CHAR(10) NOT NULL,
-    KEY tenor_id (`tenor_id`),
+    api_id CHAR(10) NOT NULL,
+    KEY api_id (`api_id`),
     created  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = INNODB DEFAULT CHARSET=utf8;
 
@@ -23,7 +23,7 @@ CREATE TABLE `gif_data` (
                       frame MEDIUMTEXT NOT NULL,
                       gif_id CHAR(10) NOT NULL,
                       CONSTRAINT `fk_gif_data_gif`
-                          FOREIGN KEY (gif_id) REFERENCES gif (tenor_id)
+                          FOREIGN KEY (gif_id) REFERENCES gif (api_id)
                               ON DELETE CASCADE
                               ON UPDATE RESTRICT
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8;
