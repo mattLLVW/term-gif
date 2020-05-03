@@ -72,10 +72,6 @@ func sendGif(w http.ResponseWriter, imgs []models.RenderedImg) {
 
 // If requested from Cli, search for gif, encode in ansi and return result
 func wildcardHandler(w http.ResponseWriter, r *http.Request) {
-	// If enabled, return a random gif
-	rand.Seed(time.Now().Unix())
-	randNb := rand.Intn(c.Limit)
-
 	// Extract search terms from url and format them
 	search := mux.Vars(r)["search"]
 	strings.ReplaceAll(search, "_", " ")
@@ -83,29 +79,36 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Search gif on api and return api data
 	apiData, err := searchApi(search)
-	gifUrl := apiData.Results[randNb].Media[0].Gif.Url
-	gifId := apiData.Results[randNb].Id
-	if err != nil {
+
+	if err != nil || len(apiData.Results) == 0 {
+		log.Println("api results len", len(apiData.Results), "err", err)
 		sendGif(w, models.OopsGif())
-	} else if models.AlreadyExist(gifId) {
-		// If we already have gif rendered locally try returning it
-		log.Println("fetching", gifId, "from database")
-		g, err := models.GetGifFromDb(gifId, qry.Get("rev") != "")
-		if err != nil {
-			log.Println("error while fetching", gifId, "from database")
-			sendGif(w, models.OopsGif())
-		} else {
-			sendGif(w, g)
-		}
 	} else {
-		// If we don't have gif locally, store it in database and return it
-		log.Println("inserting", gifId, "into database")
-		g, err := models.InsertGif(gifId, gifUrl, qry.Get("rev") != "")
-		if err != nil {
-			log.Println("error while inserting", gifId, "into database")
-			sendGif(w, models.OopsGif())
+		// If enabled, return a random gif
+		rand.Seed(time.Now().Unix())
+		randNb := rand.Intn(c.Limit)
+		gifUrl := apiData.Results[randNb].Media[0].Gif.Url
+		gifId := apiData.Results[randNb].Id
+		if models.AlreadyExist(gifId) {
+			// If we already have gif rendered locally try returning it
+			log.Println("fetching", gifId, "from database")
+			g, err := models.GetGifFromDb(gifId, qry.Get("rev") != "")
+			if err != nil {
+				log.Println("error while fetching", gifId, "from database")
+				sendGif(w, models.OopsGif())
+			} else {
+				sendGif(w, g)
+			}
 		} else {
-			sendGif(w, g)
+			// If we don't have gif locally, store it in database and return it
+			log.Println("inserting", gifId, "into database")
+			g, err := models.InsertGif(gifId, gifUrl, qry.Get("rev") != "")
+			if err != nil {
+				log.Println("error while inserting", gifId, "into database")
+				sendGif(w, models.OopsGif())
+			} else {
+				sendGif(w, g)
+			}
 		}
 	}
 }
