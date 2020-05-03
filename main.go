@@ -68,6 +68,8 @@ func sendGif(w http.ResponseWriter, imgs []models.RenderedImg) {
 		// Reposition cursor
 		fmt.Fprintf(w, "\033[1;1H")
 	}
+	// Clear terminal
+	fmt.Fprintf(w, "\033[2J")
 }
 
 // If requested from Cli, search for gif, encode in ansi and return result
