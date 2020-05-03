@@ -87,6 +87,10 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 		// If enabled, return a random gif
 		rand.Seed(time.Now().Unix())
 		randNb := rand.Intn(c.Limit)
+		if len(apiData.Results) < c.Limit {
+			// Must be a specific search so just return the only result
+			randNb = 0
+		}
 		gifUrl := apiData.Results[randNb].Media[0].Gif.Url
 		gifId := apiData.Results[randNb].Id
 		if models.AlreadyExist(gifId) {
