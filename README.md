@@ -1,4 +1,4 @@
-![magic](/docs/e.xec.sh.png)
+![magic](/static/img/e.xec.sh.png)
 
 # Usage
 
