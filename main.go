@@ -82,20 +82,6 @@ func cleanupVisitors() {
 	}
 }
 
-func limit(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.Header.Get("X-Real-Ip")
-		if ip != "" {
-			limiter := getVisitor(ip)
-			if limiter.Allow() == false {
-				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // Search gif on api and return download url and gif id
 func searchApi(search string) (data models.Api, err error) {
 	url := fmt.Sprintf("https://api.tenor.com/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", search, c.ApiKey, c.Limit)
@@ -202,9 +188,19 @@ func isValidBrowser(browser string) bool {
 func conditionalHandler(w http.ResponseWriter, r *http.Request) {
 	ua := user_agent.New(r.Header.Get("User-Agent"))
 	name, _ := ua.Browser()
+	// If static site, just return it
 	if !isValidBrowser(name) {
 		indexHandler(w, r)
 	} else {
+		// Apply limiter if we are curling and have a real ip
+		ip := r.Header.Get("X-Real-Ip")
+		if ip != "" {
+			limiter := getVisitor(ip)
+			if limiter.Allow() == false {
+				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+				return
+			}
+		}
 		wildcardHandler(w, r)
 	}
 }

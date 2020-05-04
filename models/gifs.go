@@ -4,8 +4,8 @@ import (
 	"github.com/eliukblau/pixterm/pkg/ansimage"
 	"image"
 	"image/color"
-	"image/gif"
 	"image/draw"
+	"image/gif"
 	"log"
 	"net/http"
 	"os"
@@ -53,8 +53,8 @@ func InsertGif(id string, url string, rev bool) (imgs []RenderedImg, err error) 
 	}
 	// Reverse gif
 	if rev {
-		for i := len(imgs)/2-1; i >= 0; i-- {
-			opp := len(imgs)-1-i
+		for i := len(imgs)/2 - 1; i >= 0; i-- {
+			opp := len(imgs) - 1 - i
 			imgs[i], imgs[opp] = imgs[opp], imgs[i]
 		}
 	}
@@ -117,7 +117,7 @@ func maxDimensions(gif *gif.GIF) (x, y int) {
 }
 
 // If anything bad happen, be cute
-func OopsGif() ([]RenderedImg) {
+func OopsGif() []RenderedImg {
 	oopsFile, err := os.Open("static/img/oops.gif")
 	defer oopsFile.Close()
 	if err != nil {
