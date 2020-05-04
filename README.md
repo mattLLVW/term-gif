@@ -15,9 +15,7 @@ curl e.xec.sh/magic
 wget -qO- e.xec.sh/rainbow
 ```
 
-## Example
-
-[![asciicast](https://asciinema.org/a/qTVUtjVThqmrJadmLZHvmt7H1.svg)](https://asciinema.org/a/qTVUtjVThqmrJadmLZHvmt7H1)
+![magic](/static/img/magic.gif)
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
