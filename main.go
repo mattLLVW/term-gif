@@ -239,7 +239,7 @@ func main() {
 	r.PathPrefix("/").HandlerFunc(indexHandler).Methods("GET")
 
 	log.Println("starting server...")
-	err = http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(handlers.LoggingHandler(mw, limit(r))))
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(handlers.LoggingHandler(mw, r)))
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}

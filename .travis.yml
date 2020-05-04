@@ -1,0 +1,32 @@
+language: golang
+
+services: docker
+
+env:
+  - DOCKER_COMPOSE_VERSION=1.23.2
+
+before_install:
+  # Stop the postgres instance travis sets up automatically
+  - sudo /etc/init.d/postgresql stop
+  - sudo /etc/init.d/mysql stop
+
+  # Update Docker compose
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
+  - docker -v
+  - docker-compose --version
+
+  # Setup env config
+  - cp env.sample .env
+
+install:
+  - docker-compose -f docker-compose.yml up --build -d
+
+script:
+  - docker-compose exec web go test
+
+after_failure:
+  - docker-compose logs
+
