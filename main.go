@@ -84,7 +84,7 @@ func cleanupVisitors() {
 
 // Search gif on api and return download url and gif id
 func searchApi(search string) (data models.Api, err error) {
-	url := fmt.Sprintf("https://api.tenor.com/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", search, c.ApiKey, c.Limit)
+	url := fmt.Sprintf("%s/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", c.ApiUrl,search, c.ApiKey, c.Limit)
 	// Search gif on api
 	res, err := http.Get(url)
 	if err != nil {

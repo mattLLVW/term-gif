@@ -23,9 +23,8 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 ## Run locally
 
 ```bash
-cp env.sample .env
-go build main.go
-./main
+cp env.sample .env # and fill it with your api key.
+docker-compose up --build
 ```
 and connect to [localhost:9000/whatever_you_want](localhost:9000/whatever_you_want)
 

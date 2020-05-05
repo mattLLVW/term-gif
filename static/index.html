@@ -23,41 +23,11 @@
 <!-- the termynal container -->
 <h1 class="white">E.XEC.SH</h1>
 <div id="termynal" data-termynal>
-    <span data-ty id="randomGif"><img src="/static/img/magic.gif" alt="magic"
-                                      width=750/></span>
+    <span data-ty id="randomGif"><img src="/static/img/magic.gif" alt="magic" style="width: 1050px; max-width: 100%"
+                                      /></span>
 </div>
 <a href='https://ko-fi.com/J3J3173F6' target='_blank' class="kofi"><img height='36' style='border:0px;height:36px;' src='https://cdn.ko-fi.com/cdn/kofi5.png?v=2' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 <a href="https://github.com/mattLLVW/e.xec.sh" class="fa fa-3x fa-github social"></a>
 
-<!-- include and initialise termynal.js -->
-<script src="/static/js/termynal.js" data-termynal-container="#termynal"></script>
-<script>
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    async function demo() {
-        await sleep(7000);
-        let newLine = "curl e.xec.sh/mind_blown"
-        let prompt = document.getElementById('prompt')
-        let randomGif = document.getElementById('randomGif')
-        prompt.innerText = ""
-        prompt.setAttribute("data-ty-cursor", "▋")
-        randomGif.innerHTML = ""
-
-        // Sleep in loop
-        for (let i = 0; i < newLine.length; i++) {
-            await sleep(90);
-
-            prompt.innerText += newLine.charAt(i) !== " " ? newLine.charAt(i) : "\u00A0";
-        }
-        prompt.removeAttribute("data-ty-cursor")
-        await sleep(900);
-        randomGif.innerHTML = '<img src="/static/img/mindblown.gif" alt="magic" width=450/>'
-    }
-
-    demo()
-
-</script>
 </body>
 </html>
