@@ -23,7 +23,7 @@
     padding-top: 45px;
     position: relative;
     -webkit-box-sizing: border-box;
-            box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 [data-termynal]:before {
@@ -38,7 +38,7 @@
     /* A little hack to display the window buttons in one pseudo element. */
     background: #d9515d;
     -webkit-box-shadow: 25px 0 0 #f4c025, 50px 0 0 #3ec930;
-            box-shadow: 25px 0 0 #f4c025, 50px 0 0 #3ec930;
+    box-shadow: 25px 0 0 #f4c025, 50px 0 0 #3ec930;
 }
 
 [data-termynal]:after {
@@ -82,7 +82,7 @@
     font-family: monospace;
     margin-left: 0.5em;
     -webkit-animation: blink 1s infinite;
-            animation: blink 1s infinite;
+    animation: blink 1s infinite;
 }
 
 
@@ -135,6 +135,59 @@ h1 {
     right: 70px;
     background-color: transparent;
     text-decoration: none;
+}
+
+/* The Modal (background) */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0, 0, 0); /* Fallback color */
+    background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
+}
+
+/* Modal Content/Box */
+.modal-content {
+    background-color: #ffffff;
+    margin: 15% auto; /* 15% from the top and centered */
+    padding: 30px;
+    border-radius: 4px;
+    width: fit-content; /* Could be more or less, depending on screen size */
+}
+
+/* The Close Button */
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+
+.qrcode {
+    position: absolute;
+    bottom: 50px;
+    right: 310px;
+    background-color: transparent;
+    text-decoration: none;
+}
+
+.modal-text {
+    font-family: 'Fira Mono', Consolas, Menlo, Monaco, 'Courier New', Courier, monospace;
+    padding-top: 20px;
+    font-size: larger;
 }
 
 .kofi {
