@@ -35,7 +35,9 @@ If you like this project, consider donating:
 
 via GitHub Sponsors
 
-Bitcoin Lightning: ![lightning](/static/img/address.png)
+Bitcoin Lightning: 
+
+![lightning](/static/img/address.png)
 
 [![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/J3J3173F6)
 
