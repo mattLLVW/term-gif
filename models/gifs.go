@@ -19,19 +19,28 @@ type RenderedImg struct {
 	Delay  int
 }
 
-// Fetch gif on api, render it as ascii and return it
-func InsertGif(id string, url string, rev bool) (imgs []RenderedImg, err error) {
+func GetFromUrl(url string) (g *gif.GIF, err error) {
 	res, err := http.Get(url)
 	if err != nil {
-		return imgs, err
+		return g, err
 	}
 	defer res.Body.Close()
-	g, err := gif.DecodeAll(res.Body)
+	g, err = gif.DecodeAll(res.Body)
+	if err != nil {
+		return g, err
+	}
+	return
+}
+
+// Fetch gif on api, render it as ascii and return it
+func InsertGif(id string, url string, rev bool) (imgs []RenderedImg, err error) {
+	g, err := GetFromUrl(url)
 	if err != nil {
 		return imgs, err
 	}
 
 	stmt, err := db.Prepare("INSERT INTO gif (api_id) VALUES (?)")
+	defer stmt.Close()
 	if err != nil {
 		return imgs, err
 	}
@@ -43,6 +52,7 @@ func InsertGif(id string, url string, rev bool) (imgs []RenderedImg, err error) 
 	imgs = renderGif(g)
 	for i, srcImg := range imgs {
 		stmt, err := db.Prepare("INSERT INTO gif_data (frame_nb, delay, frame, gif_id) VALUES (?, ?, ?, ?)")
+		defer stmt.Close()
 		if err != nil {
 			return imgs, err
 		}
@@ -59,6 +69,19 @@ func InsertGif(id string, url string, rev bool) (imgs []RenderedImg, err error) 
 		}
 	}
 	return imgs, nil
+}
+
+func GetPreview(url string) (res string) {
+	// set image scale factor for ANSIPixel grid, background color and scale mode
+	tx, ty := 30, 9
+	sfy, sfx := ansimage.BlockSizeY, ansimage.BlockSizeX
+	mc := color.RGBA{0x00, 0x00, 0x00, 0xff}
+	dm := ansimage.DitheringMode(0)
+	sm := ansimage.ScaleMode(2)
+	pix, _ := ansimage.NewScaledFromURL(url, sfy*ty, sfx*tx, mc, sm, dm)
+	pix.SetMaxProcs(runtime.NumCPU())
+	res = pix.Render()
+	return
 }
 
 // Split gif, transform to ansi code and return a slice of images:delay
