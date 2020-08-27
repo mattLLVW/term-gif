@@ -3,10 +3,27 @@
 # Usage
 
 ```bash
-curl e.xec.sh/anything_you_want
+curl e.xec.sh/<your_search_terms_separated_by_an_underscore>
 ```
 
-Search terms must be separated by an underscore.
+## Example
+
+```
+curl e.xec.sh/spongebob_magic
+```
+
+You can also reverse the gif if you want, i.e:
+
+```
+curl "e.xec.sh/mind_blown?rev=true"
+```
+
+Or just display a preview image of the gif, i.e:
+
+```
+curl "e.xec.sh/wow?img=true"
+```
+
 
 Works with `curl` and `wget`:
 
@@ -33,7 +50,7 @@ and connect to [localhost:9000/whatever_you_want](localhost:9000/whatever_you_wa
 
 If you like this project, consider donating:
 
-via GitHub Sponsors
+via [GitHub Sponsors](https://github.com/sponsors/mattLLVW)
 
 Bitcoin Lightning: 
 
