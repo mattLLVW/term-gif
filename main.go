@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mssola/user_agent"
 	"github.com/spf13/viper"
+	lol "github.com/kris-nova/lolgopher"
 )
 
 type config struct {
@@ -179,7 +180,47 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 
 // Serve static files
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "static/index.html")
+	ua := user_agent.New(r.Header.Get("User-Agent"))
+	name, _ := ua.Browser()
+	// If static site, just return it
+	if isValidBrowser(name) {
+		landing := `                            _     
+  ___  __  _____  ___   ___| |__  
+ / _ \ \ \/ / _ \/ __| / __| '_ \ 
+|  __/_ >  <  __/ (__ _\__ \ | | |
+ \___(_)_/\_\___|\___(_)___/_| |_|
+                                  
+Search and display gifs in your terminal
+
+	USAGE:
+		curl e.xec.sh/<your_search_terms_separated_by_an_underscore>
+	
+	EXAMPLE:
+		curl e.xec.sh/spongebob_magic
+
+
+	You can also reverse the gif if you want, i.e:
+
+		curl "e.xec.sh/mind_blown?rev=true"
+	
+	Or just display a preview image of the gif, i.e:
+
+		curl "e.xec.sh/wow?img=true"
+
+
+Powered By Tenor
+
+if you like this project, please consider sponsoring it: https://github.com/sponsors/mattLLVW
+
+`
+		lw := lol.Writer{
+			Output:    w,
+			ColorMode: lol.ColorModeTrueColor,
+		}
+		lw.Write([]byte(landing))
+	} else {
+		http.ServeFile(w, r, "static/index.html")
+	}
 }
 
 // Check if request is made from a CLI
