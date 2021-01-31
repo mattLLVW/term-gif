@@ -1,25 +1,32 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/eliukblau/pixterm/pkg/ansimage"
 	"github.com/mattLLVW/e.xec.sh/models"
 	"golang.org/x/time/rate"
+	"image/color"
+	"image/gif"
 	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	lol "github.com/kris-nova/lolgopher"
 	"github.com/mssola/user_agent"
 	"github.com/spf13/viper"
-	lol "github.com/kris-nova/lolgopher"
 )
 
 type config struct {
@@ -106,6 +113,14 @@ func searchApi(search string) (data models.Api, err error) {
 	return data, nil
 }
 
+// If anything bad happen, be cute
+func oopsGif() []models.RenderedImg {
+	g := models.AnsiGif{}
+	g.Oops()
+	g.Render()
+	return g.Rendered
+}
+
 // Send rendered gif as a response
 func sendGif(w http.ResponseWriter, imgs []models.RenderedImg) {
 	// Clear terminal and position cursor
@@ -121,20 +136,138 @@ func sendGif(w http.ResponseWriter, imgs []models.RenderedImg) {
 	fmt.Fprintf(w, "\033[2J")
 }
 
+// Check if url is valid
+func isUrl(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+// TODO: find a way to list natively supported extension.
+func isValidExtension(ext string) bool {
+	switch ext {
+	case ".jpeg", ".jpg", ".png", ".gif", ".webp":
+		return true
+	}
+	return false
+}
+
 // If requested from Cli, search for gif, encode in ansi and return result
 func wildcardHandler(w http.ResponseWriter, r *http.Request) {
-	// Extract search terms from url and format them
-	search := mux.Vars(r)["search"]
-	strings.ReplaceAll(search, "_", " ")
+	// Extract search terms and url query from url and format them
 	qry := r.URL.Query()
 	preview := qry.Get("img")
+	url := qry.Get("url")
+	reverse := qry.Get("rev")
+	vars := mux.Vars(r)
+	search, ok := vars["search"]
+
+	// If there's no search terms and nothing to fetch, just return doc.
+	if (!ok && url == "") {
+		landing := `                            _     
+  ___  __  _____  ___   ___| |__  
+ / _ \ \ \/ / _ \/ __| / __| '_ \ 
+|  __/_ >  <  __/ (__ _\__ \ | | |
+ \___(_)_/\_\___|\___(_)___/_| |_|
+                                  
+Search and display gifs in your terminal
+
+	USAGE:
+		curl e.xec.sh/<your_search_terms_separated_by_an_underscore>
+		curl e.xec.sh?url=https://<the_greatest_gif_or_image_of_all_times.jpeg>
+	
+	EXAMPLE:
+		curl e.xec.sh/spongebob_magic
+		curl "e.xec.sh?url=https://e.xec.sh/static/img/mgc.gif" #inception :)
+
+
+	You can also reverse the gif if you want, i.e:
+
+		curl "e.xec.sh/mind_blown?rev=true"
+	
+	Or just display a preview image of the gif, i.e:
+
+		curl "e.xec.sh/wow?img=true"
+
+
+Powered By Tenor
+
+if you like this project, please consider sponsoring it: https://github.com/sponsors/mattLLVW
+
+`
+		lw := lol.Writer{
+			Output:    w,
+			ColorMode: lol.ColorModeTrueColor,
+		}
+		lw.Write([]byte(landing))
+		return
+	}
+	// If user submit url, check that it's valid with a valid extension before downloading.
+	if url != "" {
+		ext := filepath.Ext(url)
+		if (!isUrl(url) || !isValidExtension(ext)) {
+			sendGif(w, oopsGif())
+			return
+		}
+		res, err := http.Get(url)
+		if err != nil {
+			sendGif(w, oopsGif())
+			return
+		}
+		defer res.Body.Close()
+		body, err := ioutil.ReadAll(res.Body)
+
+		// Use the net/http package's handy DetectContentType function.
+		contentType := http.DetectContentType(body)
+
+		if contentType == "image/gif" {
+			g := models.AnsiGif{}
+			g.Gif, err = gif.DecodeAll(bytes.NewBuffer(body))
+			if err != nil {
+				sendGif(w, oopsGif())
+				return
+			}
+			if preview != "" {
+				// Clear terminal and position cursor
+				fmt.Fprintf(w, "\033[2J\033[1;1H")
+				img := g.Preview()
+				fmt.Fprintf(w, img)
+				return
+			}
+			g.Render()
+			if reverse != "" {
+				g.Reverse()
+			}
+			sendGif(w, g.Rendered)
+			return
+		}
+
+		if strings.HasPrefix(contentType, "image") {
+			// Clear terminal and position cursor
+			fmt.Fprintf(w, "\033[2J\033[1;1H")
+			// set image scale factor for ANSIPixel grid, background color and scale mode
+			tx, ty := 30, 9
+			sfy, sfx := ansimage.BlockSizeY, ansimage.BlockSizeX
+			mc := color.RGBA{0x00, 0x00, 0x00, 0xff}
+			dm := ansimage.DitheringMode(0)
+			sm := ansimage.ScaleMode(2)
+			pix, _ := ansimage.NewScaledFromReader(bytes.NewBuffer(body), sfy*ty, sfx*tx, mc, sm, dm)
+			pix.SetMaxProcs(runtime.NumCPU())
+			res := pix.Render()
+			fmt.Fprintf(w, res)
+			return
+		}
+		// If the detected content type is not a valid image be cute.
+		sendGif(w, oopsGif())
+		return
+	}
 
 	// Search gif on api and return api data
+	strings.ReplaceAll(search, "_", " ")
 	apiData, err := searchApi(search)
 
 	if err != nil || len(apiData.Results) == 0 {
 		log.Println("api results len", len(apiData.Results), "err", err)
-		sendGif(w, models.OopsGif())
+		sendGif(w, oopsGif())
 		return
 	}
 	// If enabled, return a random gif
@@ -160,7 +293,7 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 		g, err := models.GetGifFromDb(gifId, qry.Get("rev") != "")
 		if err != nil {
 			log.Println("error while fetching", gifId, "from database")
-			sendGif(w, models.OopsGif())
+			sendGif(w, oopsGif())
 			return
 		}
 		sendGif(w, g)
@@ -168,59 +301,29 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// If we don't have gif locally, store it in database and return it
 	log.Println("inserting", gifId, "into database")
-	g, err := models.InsertGif(gifId, gifUrl, qry.Get("rev") != "")
+	g := models.AnsiGif{}
+	err = g.Get(gifUrl)
 	if err != nil {
-		log.Println("error while inserting", gifId, "into database")
-		sendGif(w, models.OopsGif())
+		log.Println("error getting", gifId)
+		g.Oops()
+		g.Render()
+		sendGif(w, g.Rendered)
 		return
 	}
-	sendGif(w, g)
-	return
-}
-
-// Serve static files
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	ua := user_agent.New(r.Header.Get("User-Agent"))
-	name, _ := ua.Browser()
-	// If static site, just return it
-	if isValidBrowser(name) {
-		landing := `                            _     
-  ___  __  _____  ___   ___| |__  
- / _ \ \ \/ / _ \/ __| / __| '_ \ 
-|  __/_ >  <  __/ (__ _\__ \ | | |
- \___(_)_/\_\___|\___(_)___/_| |_|
-                                  
-Search and display gifs in your terminal
-
-	USAGE:
-		curl e.xec.sh/<your_search_terms_separated_by_an_underscore>
-	
-	EXAMPLE:
-		curl e.xec.sh/spongebob_magic
-
-
-	You can also reverse the gif if you want, i.e:
-
-		curl "e.xec.sh/mind_blown?rev=true"
-	
-	Or just display a preview image of the gif, i.e:
-
-		curl "e.xec.sh/wow?img=true"
-
-
-Powered By Tenor
-
-if you like this project, please consider sponsoring it: https://github.com/sponsors/mattLLVW
-
-`
-		lw := lol.Writer{
-			Output:    w,
-			ColorMode: lol.ColorModeTrueColor,
-		}
-		lw.Write([]byte(landing))
-	} else {
-		http.ServeFile(w, r, "static/index.html")
+	g.Render()
+	err = g.Insert(gifId)
+	if err != nil {
+		log.Println("error while inserting", gifId, "into database")
+		g.Oops()
+		g.Render()
+		sendGif(w, g.Rendered)
+		return
 	}
+	if reverse != "" {
+		g.Reverse()
+	}
+	sendGif(w, g.Rendered)
+	return
 }
 
 // Check if request is made from a CLI
@@ -241,7 +344,7 @@ func conditionalHandler(w http.ResponseWriter, r *http.Request) {
 	name, _ := ua.Browser()
 	// If static site, just return it
 	if !isValidBrowser(name) {
-		indexHandler(w, r)
+		http.ServeFile(w, r, "static/index.html")
 	} else {
 		// Apply limiter if we are curling and have a real ip
 		ip := r.Header.Get("X-Real-Ip")
@@ -287,7 +390,7 @@ func main() {
 	r := mux.NewRouter()
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("./static")))).Methods("GET")
 	r.HandleFunc("/{search}", conditionalHandler).Methods("GET")
-	r.PathPrefix("/").HandlerFunc(indexHandler).Methods("GET")
+	r.PathPrefix("/").HandlerFunc(conditionalHandler).Methods("GET")
 
 	log.Println("starting server...")
 	err = http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(handlers.LoggingHandler(mw, r)))

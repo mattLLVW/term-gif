@@ -5,11 +5,17 @@
 ```bash
 curl e.xec.sh/<your_search_terms_separated_by_an_underscore>
 ```
+or
+
+```bash
+curl e.xec.sh?url=<https://your_image_or_gif_url.gif>
+```
 
 ## Example
 
 ```
 curl e.xec.sh/spongebob_magic
+curl "e.xec.sh?url=https://e.xec.sh/static/img/mgc.gif" # Any url as long as it's an image or a gif
 ```
 
 You can also reverse the gif if you want, i.e:
