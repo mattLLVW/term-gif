@@ -13,9 +13,10 @@ services:
       - ./docker/sql/:/docker-entrypoint-initdb.d:rw
     ports:
       - "3306:3306"
+    networks:
+      - backend
   web:
     build:
-      network: host
       context: .
     ports:
       - "9000:9000"
@@ -23,3 +24,7 @@ services:
       - ./:/app
     depends_on:
       - db
+    networks:
+      - backend
+networks:
+  backend:
