@@ -373,9 +373,17 @@ func main() {
 	log.SetOutput(os.Stdout)
 
 	// Find and read the config file
-	viper.SetConfigFile(".env")
+	viper.AddConfigPath(".")
+	viper.SetConfigName(".env")
+	viper.SetConfigType("env")
+	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error while reading config file %s", err)
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error if desired
+		} else {
+			log.Fatalf("Error while reading config file %s", err)
+			// Config file was found but another error was produced
+		}
 	}
 	if err := viper.Unmarshal(&c); err != nil {
 		log.Fatalf("Unable to unmarshal config %s", err)
