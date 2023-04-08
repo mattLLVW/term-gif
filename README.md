@@ -1,41 +1,41 @@
-![magic](/static/img/e.xec.sh.png)
+# GIF.XYZZY.RUN
 
 # Usage
 
 ```bash
-curl e.xec.sh/<your_search_terms_separated_by_an_underscore>
+curl gif.xyzzy.run/<your_search_terms_separated_by_an_underscore>
 ```
 or
 
 ```bash
-curl e.xec.sh?url=<https://your_image_or_gif_url.gif>
+curl gif.xyzzy.run?url=<https://your_image_or_gif_url.gif>
 ```
 
 ## Example
 
 ```
-curl e.xec.sh/spongebob_magic
-curl "e.xec.sh?url=https://e.xec.sh/static/img/mgc.gif" # Any url as long as it's an image or a gif
+curl gif.xyzzy.run/spongebob_magic
+curl "gif.xyzzy.run?url=https://gif.xyzzy.run/static/img/mgc.gif" # Any url as long as it's an image or a gif
 ```
 
 You can also reverse the gif if you want, i.e:
 
 ```
-curl "e.xec.sh/mind_blown?rev=true"
+curl "gif.xyzzy.run/mind_blown?rev=true"
 ```
 
 Or just display a preview image of the gif, i.e:
 
 ```
-curl "e.xec.sh/wow?img=true"
+curl "gif.xyzzy.run/wow?img=true"
 ```
 
 
 Works with `curl` and `wget`:
 
 ```bash
-curl e.xec.sh/magic
-wget -qO- e.xec.sh/rainbow
+curl gif.xyzzy.run/magic
+wget -qO- gif.xyzzy.run/rainbow
 ```
 
 ![magic](/static/img/magic.gif)
@@ -57,10 +57,6 @@ and connect to [localhost:9000/whatever_you_want](localhost:9000/whatever_you_wa
 If you like this project, consider donating:
 
 via [GitHub Sponsors](https://github.com/sponsors/mattLLVW)
-
-Bitcoin Lightning: 
-
-![lightning](/static/img/address.png)
 
 [![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/J3J3173F6)
 
