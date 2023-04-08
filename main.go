@@ -4,12 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/eliukblau/pixterm/pkg/ansimage"
-	"github.com/mattLLVW/e.xec.sh/models"
-	"golang.org/x/time/rate"
 	"image/color"
 	"image/gif"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -21,6 +17,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/eliukblau/pixterm/pkg/ansimage"
+	"github.com/mattLLVW/e.xec.sh/models"
+	"golang.org/x/time/rate"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -53,7 +53,7 @@ type visitor struct {
 	lastSeen time.Time
 }
 
-// Change the the map to hold values of the type visitor.
+// Change the map to hold values of the type visitor.
 var visitors = make(map[string]*visitor)
 var mu sync.Mutex
 
@@ -92,7 +92,7 @@ func cleanupVisitors() {
 
 // Search gif on api and return download url and gif id
 func searchApi(search string) (data models.Api, err error) {
-	url := fmt.Sprintf("%s/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", c.ApiUrl,search, c.ApiKey, c.Limit)
+	url := fmt.Sprintf("%s/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", c.ApiUrl, search, c.ApiKey, c.Limit)
 	// Search gif on api
 	res, err := http.Get(url)
 	if err != nil {
@@ -162,31 +162,33 @@ func wildcardHandler(w http.ResponseWriter, r *http.Request) {
 	search, ok := vars["search"]
 
 	// If there's no search terms and nothing to fetch, just return doc.
-	if (!ok && url == "") {
-		landing := `                            _     
-  ___  __  _____  ___   ___| |__  
- / _ \ \ \/ / _ \/ __| / __| '_ \ 
-|  __/_ >  <  __/ (__ _\__ \ | | |
- \___(_)_/\_\___|\___(_)___/_| |_|
-                                  
+	if !ok && url == "" {
+		landing := `                                  
+       _  __
+  __ _(_)/ _|__  ___   _ _________   _   _ __ _   _ _ __
+ / _  | | |_ \ \/ / | | |_  /_  / | | | | '__| | | | '_ \
+| (_| | |  _| >  <| |_| |/ / / /| |_| |_| |  | |_| | | | |
+ \__, |_|_|(_)_/\_\\__, /___/___|\__, (_)_|   \__,_|_| |_|
+ |___/             |___/         |___/
+
 Search and display gifs in your terminal
 
 	USAGE:
-		curl e.xec.sh/<your_search_terms_separated_by_an_underscore>
-		curl e.xec.sh?url=https://<the_greatest_gif_or_image_of_all_times.jpeg>
+		curl gif.xyzzy.run/<your_search_terms_separated_by_an_underscore>
+		curl gif.xyzzy.run?url=https://<the_greatest_gif_or_image_of_all_times.jpeg>
 	
 	EXAMPLE:
-		curl e.xec.sh/spongebob_magic
-		curl "e.xec.sh?url=https://e.xec.sh/static/img/mgc.gif" #inception :)
+		curl gif.xyzzy.run/spongebob_magic
+		curl "gif.xyzzy.run?url=https://gif.xyzzy.run/static/img/mgc.gif" #inception :)
 
 
 	You can also reverse the gif if you want, i.e:
 
-		curl "e.xec.sh/mind_blown?rev=true"
+		curl "gif.xyzzy.run/mind_blown?rev=true"
 	
 	Or just display a preview image of the gif, i.e:
 
-		curl "e.xec.sh/wow?img=true"
+		curl "gif.xyzzy.run/wow?img=true"
 
 
 Powered By Tenor
@@ -204,7 +206,7 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 	// If user submit url, check that it's valid with a valid extension before downloading.
 	if url != "" {
 		ext := filepath.Ext(url)
-		if (!isUrl(url) || !isValidExtension(ext)) {
+		if !isUrl(url) || !isValidExtension(ext) {
 			sendGif(w, oopsGif())
 			return
 		}
@@ -287,7 +289,7 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 		fmt.Fprintf(w, img)
 		return
 	}
-	if models.AlreadyExist(gifId) {
+	if c.DbEnabled && models.AlreadyExist(gifId) {
 		// If we already have gif rendered locally try returning it
 		log.Println("fetching", gifId, "from database")
 		g, err := models.GetGifFromDb(gifId, qry.Get("rev") != "")
@@ -299,8 +301,7 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 		sendGif(w, g)
 		return
 	}
-	// If we don't have gif locally, store it in database and return it
-	log.Println("inserting", gifId, "into database")
+	// Render fetched gif
 	g := models.AnsiGif{}
 	err = g.Get(gifUrl)
 	if err != nil {
@@ -311,13 +312,17 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 		return
 	}
 	g.Render()
-	err = g.Insert(gifId)
-	if err != nil {
-		log.Println("error while inserting", gifId, "into database")
-		g.Oops()
-		g.Render()
-		sendGif(w, g.Rendered)
-		return
+	if c.DbEnabled {
+		// Store rendered gif in db.
+		log.Println("inserting", gifId, "into database")
+		err = g.Insert(gifId)
+		if err != nil {
+			log.Println("error while inserting", gifId, "into database")
+			g.Oops()
+			g.Render()
+			sendGif(w, g.Rendered)
+			return
+		}
 	}
 	if reverse != "" {
 		g.Reverse()
@@ -365,14 +370,7 @@ func init() {
 }
 
 func main() {
-	// Open logging file and output logs to both std out and app.log
-	f, err := os.OpenFile("app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-	mw := io.MultiWriter(os.Stdout, f)
-	log.SetOutput(mw)
+	log.SetOutput(os.Stdout)
 
 	// Find and read the config file
 	viper.SetConfigFile(".env")
@@ -383,8 +381,10 @@ func main() {
 		log.Fatalf("Unable to unmarshal config %s", err)
 	}
 
-	// Init database using environ variables
-	models.InitDB(fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8", c.DbUser, c.DbPass, c.DbHost, c.DbPort, c.DbName))
+	if c.DbEnabled {
+		// Init database using environ variables
+		models.InitDB(fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8", c.DbUser, c.DbPass, c.DbHost, c.DbPort, c.DbName))
+	}
 
 	// Route to static site or ascii gif based on user agent
 	r := mux.NewRouter()
@@ -392,8 +392,8 @@ func main() {
 	r.HandleFunc("/{search}", conditionalHandler).Methods("GET")
 	r.PathPrefix("/").HandlerFunc(conditionalHandler).Methods("GET")
 
-	log.Println("starting server...")
-	err = http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(handlers.LoggingHandler(mw, r)))
+	log.Printf("starting server on %s:%d\n", c.Host, c.Port)
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", c.Host, c.Port), handlers.RecoveryHandler()(handlers.LoggingHandler(os.Stdout, r)))
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
