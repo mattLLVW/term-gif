@@ -374,9 +374,8 @@ func main() {
 
 	// Find and read the config file
 	viper.AddConfigPath(".")
-	viper.SetConfigName(".env")
+	viper.SetConfigName("env.sample")
 	viper.SetConfigType("env")
-	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; ignore error if desired
@@ -385,6 +384,7 @@ func main() {
 			// Config file was found but another error was produced
 		}
 	}
+	viper.AutomaticEnv()
 	if err := viper.Unmarshal(&c); err != nil {
 		log.Fatalf("Unable to unmarshal config %s", err)
 	}
