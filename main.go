@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/eliukblau/pixterm/pkg/ansimage"
-	"github.com/mattLLVW/e.xec.sh/models"
+	"github.com/mattLLVW/term-gif/models"
 	"golang.org/x/time/rate"
 
 	"github.com/gorilla/handlers"
