@@ -375,6 +375,18 @@ func init() {
 func main() {
 	log.SetOutput(os.Stdout)
 
+	viper.SetDefault("host", "0.0.0.0")
+	viper.SetDefault("port", 8080)
+	viper.SetDefault("apikey", "")
+	viper.SetDefault("apiurl", "https://api.giphy.com")
+	viper.SetDefault("limit", 4)
+	viper.SetDefault("dbuser", "termgif")
+	viper.SetDefault("dbpass", "")
+	viper.SetDefault("dbhost", "localhost")
+	viper.SetDefault("dbport", 3306)
+	viper.SetDefault("dbname", "termgif")
+	viper.SetDefault("dbenabled", false)
+
 	// Find and read the config file
 	viper.AddConfigPath(".")
 	viper.SetConfigName(".env")
@@ -388,6 +400,12 @@ func main() {
 		}
 	}
 	viper.AutomaticEnv()
+	if err := viper.BindEnv("host", "HOST"); err != nil {
+		log.Fatalf("Unable to bind HOST environment variable: %s", err)
+	}
+	if err := viper.BindEnv("port", "PORT"); err != nil {
+		log.Fatalf("Unable to bind PORT environment variable: %s", err)
+	}
 	if err := viper.Unmarshal(&c); err != nil {
 		log.Fatalf("Unable to unmarshal config %s", err)
 	}
