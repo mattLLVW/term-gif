@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -92,16 +93,21 @@ func cleanupVisitors() {
 
 // Search gif on api and return download url and gif id
 func searchApi(search string) (data models.Api, err error) {
-	url := fmt.Sprintf("%s/v1/search?q='%s'&key=%s&media_filter=minimal&limit=%d", c.ApiUrl, search, c.ApiKey, c.Limit)
+	query := url.Values{}
+	query.Set("q", search)
+	query.Set("key", c.ApiKey)
+	query.Set("media_filter", "gif,preview")
+	query.Set("limit", fmt.Sprint(c.Limit))
+	apiURL := fmt.Sprintf("%s/v2/search?%s", strings.TrimRight(c.ApiUrl, "/"), query.Encode())
 	// Search gif on api
-	res, err := http.Get(url)
+	res, err := http.Get(apiURL)
 	if err != nil {
 		log.Printf("Error while searching gif %s", err)
 		return data, err
 	}
 	defer res.Body.Close()
 	// Parse json response
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("Error while reading body %s", err)
 		return data, err
@@ -128,7 +134,7 @@ func sendGif(w http.ResponseWriter, imgs []models.RenderedImg) {
 
 	for _, srcImg := range imgs {
 		time.Sleep(time.Duration(srcImg.Delay*10) * time.Millisecond)
-		fmt.Fprintf(w, srcImg.Output)
+		fmt.Fprint(w, srcImg.Output)
 		// Reposition cursor
 		fmt.Fprintf(w, "\033[1;1H")
 	}
@@ -191,8 +197,6 @@ Search and display gifs in your terminal
 		curl "gif.xyzzy.run/wow?img=true"
 
 
-Powered By Tenor
-
 if you like this project, please consider sponsoring it: https://github.com/sponsors/mattLLVW
 
 `
@@ -232,7 +236,7 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 				// Clear terminal and position cursor
 				fmt.Fprintf(w, "\033[2J\033[1;1H")
 				img := g.Preview()
-				fmt.Fprintf(w, img)
+				fmt.Fprint(w, img)
 				return
 			}
 			g.Render()
@@ -255,7 +259,7 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 			pix, _ := ansimage.NewScaledFromReader(bytes.NewBuffer(body), sfy*ty, sfx*tx, mc, sm, dm)
 			pix.SetMaxProcs(runtime.NumCPU())
 			res := pix.Render()
-			fmt.Fprintf(w, res)
+			fmt.Fprint(w, res)
 			return
 		}
 		// If the detected content type is not a valid image be cute.
@@ -264,7 +268,7 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 	}
 
 	// Search gif on api and return api data
-	strings.ReplaceAll(search, "_", " ")
+	search = strings.ReplaceAll(search, "_", " ")
 	apiData, err := searchApi(search)
 
 	if err != nil || len(apiData.Results) == 0 {
@@ -279,14 +283,14 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 		// Must be a specific search so just return the only result
 		randNb = 0
 	}
-	gifUrl := apiData.Results[randNb].Media[0].Gif.Url
-	gifId := apiData.Results[randNb].Id
-	gifPreview := apiData.Results[randNb].Media[0].Gif.Preview
+	gifUrl := apiData.Results[randNb].MediaFormats.Gif.URL
+	gifId := apiData.Results[randNb].ID
+	gifPreview := apiData.Results[randNb].MediaFormats.Preview.URL
 	if preview != "" {
 		// Clear terminal and position cursor
 		fmt.Fprintf(w, "\033[2J\033[1;1H")
 		img := models.GetPreview(gifPreview)
-		fmt.Fprintf(w, img)
+		fmt.Fprint(w, img)
 		return
 	}
 	if c.DbEnabled && models.AlreadyExist(gifId) {
@@ -317,7 +321,7 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 		log.Println("inserting", gifId, "into database")
 		err = g.Insert(gifId)
 		if err != nil {
-			log.Println("error while inserting", gifId, "into database")
+			log.Println("error while inserting", gifId, "into database", err)
 			g.Oops()
 			g.Render()
 			sendGif(w, g.Rendered)
@@ -328,7 +332,6 @@ if you like this project, please consider sponsoring it: https://github.com/spon
 		g.Reverse()
 	}
 	sendGif(w, g.Rendered)
-	return
 }
 
 // Check if request is made from a CLI
@@ -374,7 +377,7 @@ func main() {
 
 	// Find and read the config file
 	viper.AddConfigPath(".")
-	viper.SetConfigName("env.sample")
+	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
