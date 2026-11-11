@@ -1,14 +1,12 @@
-version: '3.4'
-
 services:
   db:
     image: mariadb
     restart: always
     environment:
-      MYSQL_DATABASE: execsh
+      MYSQL_DATABASE: termgif
       MYSQL_ROOT_PASSWORD: superdupersecretpassword
-      MYSQL_USER: execsh
-      MYSQL_PASSWORD: execsh
+      MYSQL_USER: termgif
+      MYSQL_PASSWORD: superdupersecretpassword
     volumes:
       - ./docker/sql/:/docker-entrypoint-initdb.d:rw
     ports:
@@ -17,8 +15,11 @@ services:
     build:
       network: host
       context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
     ports:
-      - "9000:9000"
+      - "8080:8080"
     volumes:
       - ./:/app
     depends_on:

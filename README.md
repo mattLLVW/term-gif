@@ -49,7 +49,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 cp env.sample .env # and fill it with your api key.
 docker-compose up --build
 ```
-and connect to [localhost:9000/whatever_you_want](localhost:9000/whatever_you_want)
+and connect to [localhost:8080/whatever_you_want](localhost:8080/whatever_you_want)
 
 
 ## Donations

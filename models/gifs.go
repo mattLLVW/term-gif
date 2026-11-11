@@ -1,7 +1,6 @@
 package models
 
 import (
-	"github.com/eliukblau/pixterm/pkg/ansimage"
 	"image"
 	"image/color"
 	"image/draw"
@@ -10,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+
+	"github.com/eliukblau/pixterm/pkg/ansimage"
 )
 
 // a rendered image extracted from a gif with its timing
@@ -92,11 +93,11 @@ func (g *AnsiGif) maxDimensions() (x, y int) {
 // If anything bad happen, be cute
 func (g *AnsiGif) Oops() {
 	oopsFile, err := os.Open("static/img/oops.gif")
-	defer oopsFile.Close()
 	if err != nil {
 		// Something is really wrong, just stop everything
 		panic("can't even open rescue gif")
 	}
+	defer oopsFile.Close()
 	g.Gif, err = gif.DecodeAll(oopsFile)
 	if err != nil {
 		// Something is really wrong, just stop everything
@@ -106,10 +107,10 @@ func (g *AnsiGif) Oops() {
 
 func (g *AnsiGif) Insert(id string) (err error) {
 	stmt, err := db.Prepare("INSERT INTO gif (api_id) VALUES (?)")
-	defer stmt.Close()
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 	_, err = stmt.Exec(id)
 	if err != nil {
 		return err
@@ -117,10 +118,10 @@ func (g *AnsiGif) Insert(id string) (err error) {
 
 	for i, srcImg := range g.Rendered {
 		stmt, err := db.Prepare("INSERT INTO gif_data (frame_nb, delay, frame, gif_id) VALUES (?, ?, ?, ?)")
-		defer stmt.Close()
 		if err != nil {
 			return err
 		}
+		defer stmt.Close()
 		_, err = stmt.Exec(i, srcImg.Delay, srcImg.Output, id)
 		if err != nil {
 			return err

@@ -1,1 +1,4 @@
-!.env
+.env
+# Git and version control
+.git
+.gitignore

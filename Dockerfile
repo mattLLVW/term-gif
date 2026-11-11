@@ -1,18 +1,19 @@
-FROM golang:latest
-
-RUN apt-get update
-
-RUN apt-get install -y netcat
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /app
 
-COPY go.mod /app
-
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . /app
-COPY .env /app
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o server .
 
-RUN go get github.com/githubnemo/CompileDaemon
+FROM alpine:3.24
 
-ENTRYPOINT ["/app/docker/utils/entrypoint.sh"]
+WORKDIR /app
+
+COPY --from=builder /app/server .
+
+EXPOSE 8080
+
+CMD ["./server"]

@@ -1,0 +1,15 @@
+FROM golang:1.27.3
+
+RUN apt-get update && apt-get install -y netcat-openbsd
+
+WORKDIR /app
+
+COPY go.mod /app
+
+RUN go mod download
+
+COPY . /app
+
+RUN go install github.com/githubnemo/CompileDaemon@latest
+
+ENTRYPOINT ["/app/docker/utils/entrypoint.sh"]
